@@ -1,5 +1,5 @@
-import { useEffect, useState, useMemo, useRef } from "react";
-import { config, Map, Marker, LngLatBounds } from "maplibre-gl";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import { config, Map, Marker, Popup, LngLatBounds } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useDatabase } from "../../context/DatabaseContext";
 import { calculateHaversineDistance } from "../../utils/haversine";
@@ -13,7 +13,7 @@ if (config) {
 const CAMPUS_CENTER_LNG_LAT = [76.285827, 10.361964];
 
 // Flag to show/hide the Outdoor Node Debugger button (set to true when path correction is needed)
-const ENABLE_NODE_DEBUGGER = false;
+const ENABLE_NODE_DEBUGGER = true;
 
 /**
  * Calculates geographic bearing between two points (0° to 360°).
@@ -39,7 +39,7 @@ function generateRouteArrows(route = []) {
   if (!route || !Array.isArray(route) || route.length < 2) return [];
 
   const arrows = [];
-  const STEP_METERS = 22; // Spacing between consecutive arrows along a segment
+  const STEP_METERS = 14; // Spacing for small, elegant flow arrows along path segments
 
   for (let i = 0; i < route.length - 1; i++) {
     const start = route[i];
@@ -53,7 +53,7 @@ function generateRouteArrows(route = []) {
     const lng2 = end[1];
 
     const distMeters = calculateHaversineDistance(lat1, lng1, lat2, lng2);
-    if (distMeters < 4) continue;
+    if (distMeters < 3) continue;
 
     const bearing = calculateBearing(lat1, lng1, lat2, lng2);
     const count = Math.max(1, Math.floor(distMeters / STEP_METERS));
@@ -192,6 +192,14 @@ export default function CampusMap({
   const lastPreviewRouteRef = useRef(null);
   const wasNavigatingRef = useRef(false);
 
+  // Compass Heading & Movement Tracking Refs
+  const headingRef = useRef(null);
+  const prevLocRef = useRef(null);
+
+  // Navigation Follow Mode: tracks if map should auto-rotate & follow user
+  const followModeRef = useRef(false); // true = map rotates with user heading
+  const navRotationFrameRef = useRef(null); // rAF handle for smooth rotation loop
+
   // Markers Refs
   const userMarkerRef = useRef(null);
   const userConeElRef = useRef(null);
@@ -201,6 +209,39 @@ export default function CampusMap({
   const debugMarkersRef = useRef([]);
   const svgPathRef = useRef(null);
   const svgCasingRef = useRef(null);
+
+  // Dynamic Headlight Rotation sync relative to world & map camera rotation angle
+  const updateHeadlightRotation = useCallback(() => {
+    const map = mapRef.current;
+    if (!map || !userConeElRef.current) return;
+
+    const activeHdg = headingRef.current !== null && headingRef.current !== undefined ? headingRef.current : 0;
+    const mapBearing = map.getBearing() || 0;
+    const effectiveRotation = (activeHdg - mapBearing + 360) % 360;
+
+    userConeElRef.current.style.display = "block";
+    userConeElRef.current.style.transform = `rotate(${Math.round(effectiveRotation)}deg)`;
+  }, []);
+
+  // Synchronize Headlight Rotation on Map Camera Touch Rotation & Pitch
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+
+    updateHeadlightRotation();
+
+    const handleCameraRotate = () => updateHeadlightRotation();
+
+    map.on("rotate", handleCameraRotate);
+    map.on("pitch", handleCameraRotate);
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.off("rotate", handleCameraRotate);
+        mapRef.current.off("pitch", handleCameraRotate);
+      }
+    };
+  }, [mapLoaded, updateHeadlightRotation]);
 
   // 1. Initial Load Auto-Focus (Fly to User Location once on map open)
   useEffect(() => {
@@ -218,25 +259,118 @@ export default function CampusMap({
     }
   }, [currentLocation, mapLoaded]);
 
-  // 2. Start Navigation Focus (Fly close-up to User Location once when 'Start Navigation' is clicked)
+  // 2. Start Navigation Focus + Enable Follow Mode (Google Maps-style)
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
 
     if (isNavigating && !wasNavigatingRef.current) {
       wasNavigatingRef.current = true;
+      followModeRef.current = true; // Enable follow mode when navigation starts
+
+      const hdg = headingRef.current || 0;
       if (currentLocation && Array.isArray(currentLocation) && currentLocation.length === 2 && !isNaN(currentLocation[0]) && !isNaN(currentLocation[1])) {
         map.flyTo({
           center: [currentLocation[1], currentLocation[0]],
           zoom: 19.5,
-          pitch: 45,
-          duration: 1200,
+          pitch: 50,
+          bearing: hdg, // Face in direction of travel
+          duration: 1400,
         });
       }
     } else if (!isNavigating) {
       wasNavigatingRef.current = false;
+      followModeRef.current = false; // Disable follow mode when navigation stops
+
+      // Smoothly reset bearing to north when navigation ends
+      if (map) {
+        map.easeTo({ bearing: 0, pitch: 30, duration: 800 });
+      }
     }
   }, [isNavigating, currentLocation, mapLoaded]);
+
+  // 3. Smooth Navigation Rotation Loop: Continuously rotate map to user heading during navigation
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+
+    // Cancel any existing loop
+    if (navRotationFrameRef.current) {
+      cancelAnimationFrame(navRotationFrameRef.current);
+      navRotationFrameRef.current = null;
+    }
+
+    if (!isNavigating) return;
+
+    let lastBearing = map.getBearing();
+
+    const rotationLoop = () => {
+      if (!followModeRef.current || !mapRef.current) return;
+
+      const targetHeading = headingRef.current;
+      if (targetHeading !== null && targetHeading !== undefined && !isNaN(targetHeading)) {
+        const currentBearing = mapRef.current.getBearing();
+
+        // Shortest angular path to target
+        let delta = ((targetHeading - currentBearing) + 540) % 360 - 180;
+
+        // Only update if delta is meaningful (>0.5 deg) for performance
+        if (Math.abs(delta) > 0.5) {
+          // Smooth interpolation: 8% per frame (~0.48 deg/frame at 60fps per 1deg delta)
+          const smoothed = currentBearing + delta * 0.08;
+          mapRef.current.setBearing(smoothed);
+          lastBearing = smoothed;
+        }
+
+        // Also track user location smoothly during follow mode
+        if (currentLocation && Array.isArray(currentLocation) && currentLocation.length === 2) {
+          // Only re-center if user hasn't manually panned significantly
+          const mapCenter = mapRef.current.getCenter();
+          const userLng = currentLocation[1];
+          const userLat = currentLocation[0];
+          const dx = Math.abs(mapCenter.lng - userLng);
+          const dy = Math.abs(mapCenter.lat - userLat);
+          // Auto-follow: softly pan to user if they've drifted more than ~8m from center
+          if (dx > 0.00008 || dy > 0.00008) {
+            mapRef.current.panTo([userLng, userLat], { duration: 300, easing: (t) => t });
+          }
+        }
+      }
+
+      navRotationFrameRef.current = requestAnimationFrame(rotationLoop);
+    };
+
+    navRotationFrameRef.current = requestAnimationFrame(rotationLoop);
+
+    return () => {
+      if (navRotationFrameRef.current) {
+        cancelAnimationFrame(navRotationFrameRef.current);
+        navRotationFrameRef.current = null;
+      }
+    };
+  }, [isNavigating, mapLoaded, currentLocation]);
+
+  // 4. Detect user manual map interaction to pause follow mode (re-engages on recenter)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+
+    const handleUserInteraction = () => {
+      if (isNavigating && followModeRef.current) {
+        followModeRef.current = false; // Pause follow mode on manual pan/rotate
+      }
+    };
+
+    map.on('dragstart', handleUserInteraction);
+    map.on('rotatestart', handleUserInteraction);
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.off('dragstart', handleUserInteraction);
+        mapRef.current.off('rotatestart', handleUserInteraction);
+      }
+    };
+  }, [isNavigating, mapLoaded]);
 
   // Dynamic High-Performance SVG Polyline Overlay Synchronization
   const updateSvgPolyline = () => {
@@ -544,6 +678,20 @@ export default function CampusMap({
 
     const [lat, lng] = currentLocation;
 
+    // Calculate movement bearing fallback if device compass sensor heading is null
+    if ((heading === null || heading === undefined) && prevLocRef.current) {
+      const [prevLat, prevLng] = prevLocRef.current;
+      const dist = calculateHaversineDistance(prevLat, prevLng, lat, lng);
+      if (dist > 1.2) {
+        const calcHdg = calculateBearing(prevLat, prevLng, lat, lng);
+        headingRef.current = Math.round(calcHdg);
+      }
+    } else if (heading !== null && heading !== undefined && !isNaN(heading)) {
+      headingRef.current = Math.round(heading);
+    }
+
+    prevLocRef.current = currentLocation;
+
     if (!userMarkerRef.current) {
       const el = document.createElement("div");
       el.className = "user-location-marker-container";
@@ -625,13 +773,8 @@ export default function CampusMap({
       userMarkerRef.current.setLngLat([lng, lat]);
     }
 
-    // Rotate Headlight Cone to Heading (Google Maps-style direction indicator)
-    if (userConeElRef.current) {
-      const activeHeading = (heading !== null && heading !== undefined && !isNaN(heading)) ? Math.round(heading) : 0;
-      userConeElRef.current.style.display = "block";
-      userConeElRef.current.style.transform = `rotate(${activeHeading}deg)`;
-    }
-  }, [currentLocation, heading, mapLoaded]);
+    updateHeadlightRotation();
+  }, [currentLocation, heading, mapLoaded, updateHeadlightRotation]);
 
   // Render Destination Pin Marker
   useEffect(() => {
@@ -753,34 +896,43 @@ export default function CampusMap({
       if (m) m.remove();
     }
 
+    const updateArrowRotation = (el, worldBearing) => {
+      const map = mapRef.current;
+      const mapBearing = map ? map.getBearing() : 0;
+      // Arrow must compensate for map rotation so it always points the correct world direction
+      const visualBearing = (worldBearing - mapBearing + 360) % 360;
+      const rotateEl = el ? el.querySelector(".route-arrow-inner") : null;
+      if (rotateEl) rotateEl.style.transform = `rotate(${visualBearing}deg)`;
+    };
+
     routeArrows.forEach((arrow, idx) => {
       if (idx < currentMarkers.length) {
         const marker = currentMarkers[idx];
         marker.setLngLat([arrow.lng, arrow.lat]);
-        const el = marker.getElement();
-        const rotateEl = el ? el.querySelector(".route-arrow-inner") : null;
-        if (rotateEl) {
-          rotateEl.style.transform = `rotate(${arrow.bearing}deg)`;
-        }
+        updateArrowRotation(marker.getElement(), arrow.bearing);
       } else {
         const el = document.createElement("div");
         el.className = "route-arrow-marker";
         el.style.pointerEvents = "none";
-        el.style.width = "20px";
-        el.style.height = "20px";
+        el.style.width = "16px";
+        el.style.height = "16px";
+        el.style.zIndex = "10";
+
+        const mapBearing = mapRef.current ? mapRef.current.getBearing() : 0;
+        const visualBearing = (arrow.bearing - mapBearing + 360) % 360;
 
         el.innerHTML = `
           <div class="route-arrow-inner" style="
-            width: 20px;
-            height: 20px;
+            width: 16px;
+            height: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-            transform: rotate(${arrow.bearing}deg);
+            transform: rotate(${visualBearing}deg);
             pointer-events: none;
           ">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 1.5px 3px rgba(0,0,0,0.6));">
-              <polyline points="18 15 12 9 6 15"></polyline>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 1px 2.5px rgba(0,0,0,0.75));">
+              <polyline points="18 16 12 8 6 16"></polyline>
             </svg>
           </div>
         `;
@@ -795,6 +947,21 @@ export default function CampusMap({
         currentMarkers.push(marker);
       }
     });
+
+    // Re-sync arrow rotations when map rotates
+    const syncArrows = () => {
+      const markers = arrowMarkersRef.current;
+      routeArrows.forEach((arrow, idx) => {
+        if (idx < markers.length) {
+          updateArrowRotation(markers[idx].getElement(), arrow.bearing);
+        }
+      });
+    };
+
+    map.on('rotate', syncArrows);
+    return () => {
+      if (mapRef.current) mapRef.current.off('rotate', syncArrows);
+    };
   }, [routeArrows, mapLoaded]);
 
   // Render Outdoor Debug Nodes & Edges (When ENABLE_NODE_DEBUGGER is active)
@@ -846,36 +1013,69 @@ export default function CampusMap({
         });
       }
 
-      // 2. Render Nodes
+      // 2. Render Nodes with Interactive Name Popup on Click
       nodes.forEach((node) => {
         if (!node || node.latitude === undefined || node.longitude === undefined) return;
         const lat = parseFloat(node.latitude);
         const lng = parseFloat(node.longitude);
         if (isNaN(lat) || isNaN(lng)) return;
 
+        const displayName = node.building_name || node.name || `Node ${node.id}`;
+        const nodeType = node.type ? ` (${node.type})` : "";
+
         const el = document.createElement("div");
         el.className = "debug-node-marker";
-        el.style.width = "14px";
-        el.style.height = "14px";
+        el.style.width = "16px";
+        el.style.height = "16px";
         el.style.cursor = "pointer";
 
         el.innerHTML = `
           <div style="
             background: #9333ea;
             color: #ffffff;
-            width: 14px;
-            height: 14px;
+            width: 16px;
+            height: 16px;
             border-radius: 50%;
             border: 2px solid #ffffff;
             box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            transition: transform 0.15s ease;
           "></div>
         `;
+
+        const popup = new Popup({
+          offset: 14,
+          closeButton: true,
+          closeOnClick: true,
+          focusAfterOpen: false,
+        }).setHTML(`
+          <div style="
+            padding: 8px 12px;
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #0f172a;
+            color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+            border: 1px solid #334155;
+            min-width: 140px;
+          ">
+            <div style="font-weight: 700; font-size: 13px; color: #c084fc; display: flex; align-items: center; gap: 4px;">
+              <span>📍</span> <span>${displayName}${nodeType}</span>
+            </div>
+            <div style="font-size: 10px; color: #94a3b8; margin-top: 4px; font-family: monospace;">
+              Node ID: <span style="color: #60a5fa;">${node.id}</span>
+            </div>
+            <div style="font-size: 10px; color: #cbd5e1; margin-top: 2px; font-family: monospace;">
+              ${lat.toFixed(6)}, ${lng.toFixed(6)}
+            </div>
+          </div>
+        `);
 
         const marker = new Marker({
           element: el,
           anchor: "center",
         })
           .setLngLat([lng, lat])
+          .setPopup(popup)
           .addTo(map);
 
         debugMarkersRef.current.push(marker);
@@ -896,16 +1096,25 @@ export default function CampusMap({
 
   const handleRecenter = () => {
     if (currentLocation && Array.isArray(currentLocation) && currentLocation.length === 2 && mapRef.current) {
+      const hdg = headingRef.current || 0;
       mapRef.current.flyTo({
         center: [currentLocation[1], currentLocation[0]],
-        zoom: 19.25,
+        zoom: 19.5,
+        bearing: isNavigating ? hdg : mapRef.current.getBearing(), // Re-align to heading during navigation
+        pitch: isNavigating ? 50 : 30,
         duration: 1000,
       });
+      // Re-engage follow mode when user taps recenter during navigation
+      if (isNavigating) {
+        followModeRef.current = true;
+      }
     }
   };
 
   const handleResetNorth = () => {
     if (mapRef.current) {
+      // Reset north also disables follow mode so user can use compass freely
+      followModeRef.current = false;
       mapRef.current.easeTo({
         bearing: 0,
         pitch: 30,

@@ -9,4 +9,7 @@ export default defineConfig({
     mkcert(),
     tailwindcss()
   ],
+  optimizeDeps: {
+    exclude: ["maplibre-gl"],
+  },
 });
