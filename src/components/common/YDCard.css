@@ -1,0 +1,271 @@
+/**
+ * YDCard.css
+ *
+ * Styles for the unified "Your Location / Destination" card that replaces
+ * the single SearchBar when a route is active or when the user is indoors.
+ */
+
+/* ─── Card container ──────────────────────────────────────────────────────── */
+.yd-card-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1500;
+  pointer-events: none;
+  padding: 0 16px;
+  padding-top: max(env(safe-area-inset-top, 4px), 4px);
+  margin-top: 0;
+}
+
+.yd-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 20px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  padding: 6px 10px;
+  pointer-events: auto;
+  max-width: 520px;
+  margin: 0 auto;
+  animation: ydCardSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes ydCardSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ─── Input rows ──────────────────────────────────────────────────────────── */
+.yd-fields {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+
+.yd-connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  flex-shrink: 0;
+  gap: 0;
+  padding: 2px 0;
+}
+
+.yd-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.yd-dot--origin {
+  background: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.yd-dot--dest {
+  background: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+
+.yd-line {
+  flex: 1;
+  width: 2px;
+  background: linear-gradient(to bottom, #bfdbfe, #fecaca);
+  margin: 2px 0;
+  min-height: 8px;
+}
+
+.yd-inputs {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* ─── Individual field ────────────────────────────────────────────────────── */
+.yd-field {
+  position: relative;
+}
+
+.yd-field-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1.5px solid #e5e7eb;
+  background: #f9fafb;
+  padding: 0 10px;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.yd-field-inner--focused {
+  border-color: #3b82f6;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.yd-field-inner--readonly {
+  border-color: #e5e7eb;
+  background: #f3f4f6;
+  cursor: default;
+}
+
+.yd-field-icon {
+  color: #9ca3af;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.yd-field-inner--focused .yd-field-icon {
+  color: #3b82f6;
+}
+
+.yd-field-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: #111827;
+  min-width: 0;
+  font-family: inherit;
+}
+
+.yd-field-input::placeholder {
+  color: #9ca3af;
+  font-weight: 400;
+}
+
+.yd-field-readonly-text {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.yd-clear-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #9ca3af;
+  flex-shrink: 0;
+  transition: color 0.15s, background 0.15s;
+  padding: 0;
+}
+
+.yd-clear-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+/* ─── Dropdown results ────────────────────────────────────────────────────── */
+.yd-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(16px);
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  border: 1px solid #f1f5f9;
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 3000;
+  padding: 6px 0;
+}
+
+.yd-dropdown-item {
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background 0.12s;
+}
+
+.yd-dropdown-item:hover,
+.yd-dropdown-item--active {
+  background: #eff6ff;
+}
+
+.yd-dropdown-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #dbeafe;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.yd-dropdown-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.yd-dropdown-meta {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 1px;
+}
+
+.yd-dropdown-empty {
+  padding: 16px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+/* ─── Divider between rows ────────────────────────────────────────────────── */
+.yd-divider {
+  height: 1px;
+  background: #f3f4f6;
+  margin: 2px 0;
+}
+
+/* ─── Scrollbar ───────────────────────────────────────────────────────────── */
+.yd-dropdown::-webkit-scrollbar {
+  width: 4px;
+}
+.yd-dropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+.yd-dropdown::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 2px;
+}

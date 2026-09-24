@@ -1,0 +1,125 @@
+/* Minimalist Loading Screen Overlay */
+.minimal-loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: background 0.9s ease, backdrop-filter 0.9s ease, -webkit-backdrop-filter 0.9s ease;
+}
+
+.minimal-loading-overlay--fade {
+  background: rgba(15, 23, 42, 0);
+  backdrop-filter: blur(0px);
+  -webkit-backdrop-filter: blur(0px);
+  pointer-events: none;
+}
+
+.minimal-loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  color: #ffffff;
+  padding: 1.5rem;
+}
+
+/* Logo styles */
+.loading-logo {
+  width: 140px;
+  height: 140px;
+  object-fit: contain;
+  margin-bottom: 1rem;
+  /* ease-in curve creates the feeling of flying forward, accelerating into the logo */
+  transition: transform 0.9s cubic-bezier(0.5, 0, 1, 0.5), opacity 0.4s ease-in 0.5s;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.2));
+}
+
+.loading-logo--zoom-fade {
+  transform: scale(1.1);
+  opacity: 0;
+}
+
+/* Loading Line */
+.loading-line-container {
+  width: 200px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  margin-top: 1.5rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.loading-line {
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  border-radius: 4px;
+  position: absolute;
+  left: -50%;
+  animation: loadingLineAnim 1.5s infinite ease-in-out;
+}
+
+@keyframes loadingLineAnim {
+  0% { left: -50%; }
+  100% { left: 100%; }
+}
+
+.minimal-title, .minimal-status, .loading-line-container, .minimal-skip-btn {
+  transition: opacity 0.3s ease-out;
+}
+
+.minimal-loading-overlay--fade .minimal-title,
+.minimal-loading-overlay--fade .minimal-status,
+.minimal-loading-overlay--fade .loading-line-container,
+.minimal-loading-overlay--fade .minimal-skip-btn {
+  opacity: 0;
+}
+
+.minimal-title {
+  font-family: 'Poppins', 'Montserrat', 'Inter', sans-serif;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  margin: 0 0 0.35rem 0;
+  background: linear-gradient(90deg, #60a5fa, #a78bfa);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: #f8fafc; /* Fallback */
+}
+
+.minimal-status {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  font-weight: 400;
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+.minimal-skip-btn {
+  margin-top: 1.5rem;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  transition: color 0.2s ease;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.minimal-skip-btn:hover {
+  color: #94a3b8;
+}

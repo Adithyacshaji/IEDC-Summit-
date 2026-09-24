@@ -1,0 +1,1281 @@
+/* ==========================================================================
+   GOOGLE MAPS SYSTEM BASE TOKENS & TYPOGRAPHY
+   ========================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --gm-blue-primary: #1a73e8;
+  --gm-blue-hover: #1557b0;
+  --gm-blue-light: #e8f0fe;
+  --gm-text-primary: #202124;
+  --gm-text-secondary: #5f6368;
+  --gm-bg-white: #ffffff;
+  --gm-bg-gray: #f1f3f4;
+  --gm-border-color: #dadce0;
+  --gm-shadow-elevation-1: 0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+  --gm-shadow-elevation-2: 0 2px 6px 0 rgba(60, 64, 67, 0.3), 0 1px 2px 0 rgba(60, 64, 67, 0.15);
+  --gm-shadow-elevation-3: 0 4px 12px 0 rgba(0, 0, 0, 0.15), 0 2px 4px 0 rgba(0, 0, 0, 0.1);
+  --gm-shadow-elevation-sheet: 0 -4px 16px rgba(0, 0, 0, 0.08), 0 -10px 30px rgba(0, 0, 0, 0.06);
+
+  /* Safe area support for notched phones */
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-top: env(safe-area-inset-top, 0px);
+}
+
+/* Utility to hide scrollbars */
+.hide-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overscroll-behavior: none;
+}
+
+.app-shell {
+  position: relative;
+  width: 100%;
+  height: 100svh;
+  overflow: hidden;
+  background: var(--gm-bg-gray);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.campus-map {
+  width: 100%;
+  height: 100svh;
+}
+
+/* ── Ultra-Smooth GPU Map Scrolling & Rendering ────────────────────────── */
+.leaflet-map-pane,
+.leaflet-tile-container,
+.leaflet-marker-pane,
+.leaflet-zoom-animated {
+  will-change: transform;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+
+.leaflet-tile {
+  will-change: transform, opacity;
+}
+
+/* ==========================================================================
+   LEAFLET MAP CONTROLS (Google Maps Style)
+   ========================================================================== */
+.campus-map .leaflet-control-zoom {
+  overflow: hidden;
+  border: 0 !important;
+  border-radius: 12px !important;
+  box-shadow: var(--gm-shadow-elevation-2) !important;
+}
+
+.campus-map .leaflet-control-zoom a {
+  width: 44px !important;
+  height: 44px !important;
+  border: 0 !important;
+  color: var(--gm-text-primary) !important;
+  font-size: 18px !important;
+  font-weight: 400 !important;
+  line-height: 44px !important;
+  background: var(--gm-bg-white) !important;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.campus-map .leaflet-control-zoom a:first-child {
+  border-bottom: 1px solid var(--gm-border-color) !important;
+}
+
+.campus-map .leaflet-control-zoom a:hover {
+  background: var(--gm-bg-gray) !important;
+  color: var(--gm-blue-primary) !important;
+}
+
+.campus-map .leaflet-control-zoom a.leaflet-disabled {
+  color: #bcc1c6 !important;
+  background: var(--gm-bg-white) !important;
+}
+
+/* Position zoom control accounting for safe area */
+.campus-map .leaflet-bottom.leaflet-right {
+  right: 16px !important;
+  bottom: calc(180px + var(--safe-area-bottom)) !important;
+  transition: bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Keep indoor zoom below the compact route selector. */
+.campus-map--indoor .leaflet-bottom.leaflet-right {
+  top: calc(236px + var(--safe-area-top)) !important;
+  bottom: auto !important;
+}
+
+@media (min-width: 768px) {
+  .campus-map .leaflet-bottom.leaflet-right {
+    bottom: 32px !important;
+  }
+}
+
+/* ==========================================================================
+   TOP HEADER & SEARCH INTERFACE
+   ========================================================================== */
+.top-controls {
+  position: absolute;
+  top: calc(16px + var(--safe-area-top));
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 1500;
+  padding: 0 16px;
+  pointer-events: none;
+}
+
+.top-controls * {
+  pointer-events: auto;
+}
+
+.top-header {
+  position: relative;
+  max-width: 520px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.header-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0px 0px 0px 8px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--gm-shadow-elevation-2);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  transition: border-radius 0.2s, box-shadow 0.2s, background-color 0.2s;
+  height: 52px;
+  /* Larger touch target on mobile */
+  box-sizing: border-box;
+}
+
+.header-card:focus-within {
+  box-shadow: 0 4px 12px rgba(60, 64, 67, 0.25);
+  border-color: rgba(26, 115, 232, 0.25);
+}
+
+.logo-img {
+  height: 32px;
+  width: auto;
+  border-radius: 6px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   NAVIGATION CARD (Premium Bottom Sheet)
+   ========================================================================== */
+.navigation-card {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: auto;
+  z-index: 1550;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  box-sizing: border-box;
+
+  /* Generous padding with safe area for home indicator */
+  padding: 20px 20px calc(24px + var(--safe-area-bottom));
+
+  border-top: 1px solid rgba(255, 255, 255, 0.8);
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  border-radius: 28px 28px 0 0;
+
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: var(--gm-text-primary);
+  text-align: left;
+
+  box-shadow: 0 -8px 30px rgba(15, 23, 42, 0.08);
+
+  animation: slideUpCard 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  /* Keep it from blocking the entire map */
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+@keyframes slideUpCard {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideRightCard {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Pull-bar drag indicator */
+.navigation-card::before {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 4px;
+  background: #e0e0e0;
+  border-radius: 2px;
+  margin: -8px auto 16px;
+}
+
+@media (min-width: 768px) {
+  .navigation-card {
+    top: 80px;
+    left: 16px;
+    bottom: auto;
+    right: auto;
+    width: 380px;
+    border-radius: 24px !important;
+    box-shadow: 0 10px 40px rgba(15, 23, 42, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.8) !important;
+    animation: slideRightCard 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    padding: 24px;
+    max-height: calc(100vh - 120px);
+  }
+
+  .navigation-card::before {
+    display: none;
+  }
+}
+
+
+
+.navigation-card h2 {
+  margin: 0 0 6px;
+  color: var(--gm-text-primary);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.navigation-card p {
+  margin: 0 0 18px;
+  color: var(--gm-text-secondary);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* ── Building Detection Modal ─────────────────────────────────────────────── */
+.navigation-card.building-modal {
+  /* Override the default bottom-anchored style to center it */
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  bottom: auto;
+  right: auto;
+  transform: translate(-50%, -50%);
+  width: calc(100% - 40px);
+  max-width: 360px;
+  border-radius: 24px;
+  text-align: center;
+  padding: 28px 24px 24px;
+  z-index: 10000;
+  animation: buildingModalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.navigation-card.building-modal::before {
+  display: none;
+}
+
+@keyframes buildingModalIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.building-modal-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+  display: block;
+  line-height: 1;
+}
+
+.building-modal-title {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--gm-text-primary);
+  line-height: 1.3;
+}
+
+.building-modal-sub {
+  margin: 0 0 20px;
+  font-size: 14px;
+  color: var(--gm-text-secondary);
+  line-height: 1.5;
+}
+
+/* Backdrop overlay for the building modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: fadeInBackdrop 0.22s ease;
+}
+
+@keyframes fadeInBackdrop {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+
+/* ==========================================================================
+   CONTROLS & ACTION BUTTONS
+   ========================================================================== */
+.button-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.primary-action,
+.secondary-action {
+  min-height: 48px;
+  /* 48px minimum touch target */
+  border: 0;
+  border-radius: 24px;
+  padding: 0 24px;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
+.primary-action {
+  flex: 1;
+  min-width: 120px;
+  background: var(--gm-blue-primary);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.35);
+}
+
+.primary-action:hover {
+  background: var(--gm-blue-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(26, 115, 232, 0.4);
+}
+
+.primary-action:active {
+  transform: translateY(0) scale(0.96);
+  box-shadow: 0 2px 6px rgba(26, 115, 232, 0.3);
+}
+
+.secondary-action {
+  background: var(--gm-bg-white);
+  color: var(--gm-blue-primary);
+  border: 1.5px solid var(--gm-border-color);
+}
+
+.secondary-action:hover {
+  background: var(--gm-bg-gray);
+  border-color: var(--gm-blue-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.secondary-action:active {
+  transform: translateY(0) scale(0.96);
+}
+
+.secondary-action:active {
+  transform: scale(0.97);
+}
+
+
+/* ==========================================================================
+   GPS MARKERS - Premium Google Maps Style
+   ========================================================================== */
+
+/* Counter-rotate inner marker graphics, tooltips, and popups for 180° rotated map pane */
+.custom-map-marker > div,
+.destination-marker > div,
+.user-location-marker > div,
+.outdoor-location-marker > div,
+.indoor-location-marker > div,
+.indoor-destination-marker > div,
+.facility-marker,
+.leaflet-popup-content-wrapper,
+.leaflet-tooltip > div,
+.leaflet-tooltip > span {
+  transform: rotate(180deg) !important;
+  transform-origin: center center !important;
+}
+
+/* ── Outdoor user location dot ── */
+.user-location-marker {
+  background: transparent;
+  border: none;
+}
+
+.user-dot-wrap {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-accuracy-ring {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(26, 115, 232, 0.12);
+  border: 1.5px solid rgba(26, 115, 232, 0.25);
+  pointer-events: none;
+}
+
+.user-dot {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--gm-blue-primary);
+  border: 3px solid #fff;
+  box-shadow:
+    0 0 0 2px rgba(26, 115, 232, 0.3),
+    0 2px 10px rgba(26, 115, 232, 0.5);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-pulse {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: transparent;
+  border: 2px solid rgba(26, 115, 232, 0.45);
+  animation: gpsPulse 2.2s ease-out infinite;
+  pointer-events: none;
+}
+
+.user-heading-arrow {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  color: var(--gm-blue-primary);
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(255,255,255,0.9));
+  transform-origin: center 18px;
+  /* Individual rotation set inline */
+}
+
+.user-heading-beam {
+  position: absolute;
+  top: -60px;
+  left: -20px;
+  width: 80px;
+  height: 80px;
+  transform-origin: 40px 80px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* "You are here" Tooltip Styles */
+.leaflet-tooltip.yah-tooltip-container {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.leaflet-tooltip.yah-tooltip-container::before {
+  display: none !important; /* Hide default triangle */
+}
+.yah-toast {
+  background: rgba(26,115,232,0.93);
+  color: #fff;
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  padding: 8px 18px;
+  border-radius: 24px;
+  box-shadow: 0 4px 18px rgba(26,115,232,0.45);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  animation: toastPop 3s ease forwards;
+}
+
+@keyframes toastPop {
+  0%   { opacity: 0; transform: scale(0.8) translateY(10px); }
+  15%  { opacity: 1; transform: scale(1) translateY(0); }
+  85%  { opacity: 1; transform: scale(1) translateY(0); }
+  100% { opacity: 0; transform: scale(0.9) translateY(-5px); }
+}
+
+@keyframes gpsPulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0.3);
+    opacity: 1;
+  }
+  80% {
+    transform: translate(-50%, -50%) scale(1.6);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.6);
+    opacity: 0;
+  }
+}
+
+/* ── Outdoor location dot ── */
+.outdoor-location-marker {
+  background: transparent;
+  border: none;
+}
+
+.outdoor-location-dot {
+  width: 13px;
+  height: 13px;
+  background: #f59e0b;
+  border: 2.5px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Small marker at the final point of every displayed route. */
+.route-endpoint-icon {
+  background: transparent;
+  border: 0;
+}
+
+.route-endpoint-dot {
+  width: 18px;
+  height: 18px;
+  border: 4px solid #fff;
+  border-radius: 50%;
+  background: #1a73e8;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);
+}
+
+/* ── Outdoor destination pin (proper Google Maps-style pin) ── */
+.destination-dot {
+  background: transparent;
+  border: none;
+}
+
+.destination-pin-wrap {
+  position: relative;
+  width: 26px;
+  height: 35px;
+  display: flex;
+  justify-content: center;
+  animation: pinBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes pinBounce {
+  0%   { transform: translateY(-20px) scale(0.7); opacity: 0; }
+  60%  { transform: translateY(4px) scale(1.05); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* ==========================================================================
+   INDOOR MARKERS - Premium
+   ========================================================================== */
+
+/* Indoor user dot */
+.indoor-location-marker {
+  background: transparent;
+  border: none;
+}
+
+.indoor-user-wrap {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.indoor-dot {
+  position: relative;
+  z-index: 2;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #34a853;
+  border: 3px solid white;
+  box-shadow:
+    0 0 0 2px rgba(52, 168, 83, 0.3),
+    0 2px 8px rgba(52, 168, 83, 0.5);
+}
+
+.indoor-pulse {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(52, 168, 83, 0.4);
+  animation: gpsPulse 2s ease-out infinite;
+  pointer-events: none;
+}
+
+/* Indoor destination marker */
+.indoor-destination-marker {
+  background: transparent;
+  border: none;
+}
+
+.indoor-dest-wrap {
+  position: relative;
+  width: 26px;
+  height: 35px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  animation: pinBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.indoor-dest-svg {
+  animation: pinFloat 2.5s ease-in-out infinite;
+}
+
+@keyframes pinFloat {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-4px); }
+}
+
+/* ── Facility markers (lift / stairs) ── */
+.facility-marker {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border-radius: 12px;
+  border: 2px solid #fff;
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.18),
+    0 1px 3px rgba(0, 0, 0, 0.12);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.facility-marker:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+/* ==========================================================================
+   ROUTE ARROWS — Real triangular directional arrows
+   ========================================================================== */
+.route-arrow-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.route-arrow {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter:
+    drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5))
+    drop-shadow(0 0 6px rgba(26, 115, 232, 0.6));
+  pointer-events: none;
+  /* rotation set inline via style prop */
+}
+
+/* ==========================================================================
+   SEARCH CHIPS (Quick Category Filters)
+   ========================================================================== */
+.search-chips-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 2px;
+}
+
+.search-chips-row::-webkit-scrollbar {
+  display: none;
+}
+
+.search-chip {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--gm-text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.search-chip:hover {
+  background: rgba(255, 255, 255, 1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+}
+
+.search-chip:active {
+  transform: scale(0.96);
+}
+
+/* ==========================================================================
+   QR SIMULATOR PANEL (Premium Collapsible)
+   ========================================================================== */
+.qr-simulator-container {
+  position: absolute;
+  top: calc(80px + var(--safe-area-top));
+  right: 16px;
+  z-index: 1400;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.qr-simulator-toggle {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--gm-text-primary);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: var(--gm-shadow-elevation-2);
+  padding: 10px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 44px;
+  /* minimum touch target */
+  min-width: 44px;
+}
+
+.qr-simulator-toggle:hover {
+  background: rgba(255, 255, 255, 1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+.qr-simulator-toggle:active {
+  transform: scale(0.97);
+}
+
+.qr-simulator-panel {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 16px;
+  width: min(280px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: panelSlideIn 0.22s cubic-bezier(0.34, 1.28, 0.64, 1);
+  transform-origin: top right;
+}
+
+@keyframes panelSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.qr-simulator-panel h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--gm-text-primary);
+  letter-spacing: -0.01em;
+}
+
+.panel-desc {
+  margin: -4px 0 0;
+  font-size: 12px;
+  color: var(--gm-text-secondary);
+  line-height: 1.5;
+}
+
+.qr-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.qr-buttons::-webkit-scrollbar {
+  width: 3px;
+}
+
+.qr-buttons::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.qr-buttons::-webkit-scrollbar-thumb {
+  background: var(--gm-border-color);
+  border-radius: 2px;
+}
+
+.qr-simulate-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(248, 249, 250, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 14px;
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  font-family: inherit;
+  min-height: 48px;
+  /* touch target */
+}
+
+.qr-simulate-btn:hover {
+  background: var(--gm-blue-light);
+  border-color: rgba(26, 115, 232, 0.25);
+  transform: translateX(2px);
+}
+
+.qr-simulate-btn:active {
+  transform: scale(0.98);
+}
+
+.qr-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.qr-btn-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.qr-btn-text strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gm-text-primary);
+  line-height: 1.3;
+}
+
+.qr-btn-text small {
+  font-size: 11px;
+  color: var(--gm-text-secondary);
+  line-height: 1.3;
+}
+
+/* ==========================================================================
+   SUBMENUS & DROPDOWNS
+   ========================================================================== */
+.submenu-content {
+  display: none;
+  position: absolute;
+  left: 100%;
+  top: 0;
+  min-width: 220px;
+  background: var(--gm-bg-white);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--gm-shadow-elevation-3);
+  border: 1px solid var(--gm-border-color);
+}
+
+.submenu:hover .submenu-content {
+  display: block;
+}
+
+/* ==========================================================================
+   LEGACY QR CHIPS (bottom strip – kept for backward compat)
+   ========================================================================== */
+.qr-chips {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  right: 20px;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  z-index: 1000;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.qr-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.qr-chip {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(10px);
+  color: #202124;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 40px;
+}
+
+.qr-chip:hover {
+  background: #f1f3f4;
+  transform: translateY(-1px);
+}
+
+.qr-chip:active {
+  transform: scale(0.96);
+}
+
+/* ==========================================================================
+   ISOMETRIC BUILDING ILLUSTRATION MARKERS
+   ========================================================================== */
+.building-iso-marker {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.22),
+    0 1px 4px rgba(0, 0, 0, 0.12);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  background: transparent;
+  /* Remove default Leaflet white border */
+  border: none !important;
+  outline: none !important;
+}
+
+.building-iso-marker img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+/* Subtle pop on hover */
+.leaflet-marker-icon.building-iso-marker:hover {
+  transform: scale(1.1) translateY(-4px);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.28),
+    0 2px 6px rgba(0, 0, 0, 0.14);
+  z-index: 9999 !important;
+}
+
+.building-label {
+  background: transparent;
+  border: none;
+}
+
+.building-label div {
+  background: rgba(255, 255, 255, 0.07);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: bold;
+  color: #222;
+  text-align: center;
+  white-space: nowrap;
+  white-space: pre-line;
+}
+
+.arrival-card {
+  text-align: center;
+  padding: 24px 20px;
+}
+
+/* Larger success icon */
+.arrival-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+  color: #16a34a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  box-shadow: 0 8px 16px rgba(22, 163, 74, 0.15);
+  animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popIn {
+  0% { transform: scale(0.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Heading */
+.arrival-card h3 {
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+/* Destination */
+.arrival-header p {
+  margin: 0 0 20px;
+  font-size: 16px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* Feedback text */
+.feedback-text {
+  margin: 16px 0 20px;
+  font-size: 14.5px;
+  color: #475569;
+  font-weight: 500;
+}
+
+/* Buttons */
+.arrival-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+/* Main feedback button */
+.feedback-btn {
+  flex: 1;
+  height: 52px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.feedback-btn:hover {
+  background: #f8fafc;
+  transform: translateY(-2px);
+}
+
+.feedback-btn:active {
+  transform: translateY(0) scale(0.96);
+}
+
+/* Finish button */
+.arrival-actions .primary-action {
+  flex: 1.5;
+  height: 52px;
+  border-radius: 16px;
+  border: none;
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  color: white;
+  font-size: 16px;
+  font-weight: 700;
+  box-shadow: 0 4px 16px rgba(22, 163, 74, 0.3);
+  transition: all 0.2s;
+}
+
+.arrival-actions .primary-action:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(22, 163, 74, 0.4);
+}
+
+.arrival-actions .primary-action:active {
+  transform: translateY(0) scale(0.96);
+}
+
+
+/* Remove extra height */
+.feedback-section {
+  display: none;
+}
+
+/* Floor transition animations */
+@keyframes fadeInFloor {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.floor-image-overlay-transition {
+  animation: fadeInFloor 0.35s ease-out forwards;
+}
+
+/* ── GPS accuracy badge ─────────────────────────────────────────────────────── */
+/* Only rendered when accuracy > 80m. Very subtle — does not alarm the user. */
+.gps-accuracy-badge {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(15, 15, 15, 0.62);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #fbbf24;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 20px;
+  pointer-events: none;
+  white-space: nowrap;
+  letter-spacing: 0.2px;
+  animation: fadeInDown 0.25s ease;
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Spinner used inside LocationAlertCard */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Leaflet container smooth ground background color to prevent grey background during zoom */
+.leaflet-container {
+  background: #f4f3f0 !important;
+}
+
+/* Hide Leaflet watermark & attribution control */
+.leaflet-control-attribution {
+  display: none !important;
+}
+
+.leaflet-control-zoom {
+  display: none !important;
+}
+
+/* Smooth gliding transition for user location icon along path */
+.user-location-marker,
+.leaflet-marker-icon.user-location-marker {
+  transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+
+/* Pulse animation for user marker */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.45);
+    opacity: 0.2;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+}
+
+/* Route arrow pointer-events reset */
+.route-arrow-marker {
+  pointer-events: none !important;
+}
+
+/* Smooth polyline path reduction transition */
+.leaflet-interactive {
+  transition: stroke-dasharray 0.3s ease-out, stroke-dashoffset 0.3s ease-out;
+}
+
+
