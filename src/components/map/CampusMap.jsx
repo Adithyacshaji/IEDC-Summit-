@@ -32,6 +32,92 @@ function calculateBearing(lat1, lng1, lat2, lng2) {
   return (bearing + 360) % 360;
 }
 
+// Snap-to-path deviation threshold (metres). Beyond this raw GPS is used.
+const SNAP_MAX_METERS = 15;
+
+/**
+ * Projects point P onto line segment AB and returns:
+ *   { lat, lng }  - snapped position on segment
+ *   distMeters    - perpendicular distance from P to segment
+ *   segmentIndex  - index of segment A in the route array
+ *   bearing       - direction of segment A→B (degrees 0-360)
+ */
+function snapToPath(userLat, userLng, route) {
+  if (!route || route.length < 2) return null;
+
+  let bestDist = Infinity;
+  let bestSnap = null;
+  let bestIdx = 0;
+  let bestBearing = 0;
+
+  for (let i = 0; i < route.length - 1; i++) {
+    const aLat = parseFloat(route[i][0]);
+    const aLng = parseFloat(route[i][1]);
+    const bLat = parseFloat(route[i + 1][0]);
+    const bLng = parseFloat(route[i + 1][1]);
+
+    // Convert to a flat 2-D plane (metres) — good enough at campus scale
+    const R = 6371000;
+    const cosLat = Math.cos((aLat * Math.PI) / 180);
+    const ax = 0, ay = 0;
+    const bx = (bLng - aLng) * cosLat * ((Math.PI / 180) * R);
+    const by = (bLat - aLat) * ((Math.PI / 180) * R);
+    const px = (userLng - aLng) * cosLat * ((Math.PI / 180) * R);
+    const py = (userLat - aLat) * ((Math.PI / 180) * R);
+
+    const segLenSq = bx * bx + by * by;
+    let t = segLenSq > 0 ? (px * bx + py * by) / segLenSq : 0;
+    t = Math.max(0, Math.min(1, t)); // clamp to [0,1]
+
+    const snapX = ax + t * bx;
+    const snapY = ay + t * by;
+    const dist = Math.sqrt((px - snapX) ** 2 + (py - snapY) ** 2);
+
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestIdx = i;
+      // Convert snap back to lat/lng
+      bestSnap = {
+        lat: aLat + (snapY / ((Math.PI / 180) * R)),
+        lng: aLng + (snapX / (cosLat * (Math.PI / 180) * R)),
+      };
+      bestBearing = calculateBearing(aLat, aLng, bLat, bLng);
+    }
+  }
+
+  return {
+    snappedLat: bestSnap.lat,
+    snappedLng: bestSnap.lng,
+    distMeters: bestDist,
+    segmentIndex: bestIdx,
+    bearing: bestBearing,
+  };
+}
+
+/**
+ * Returns a smoothed look-ahead bearing by averaging the next 1-2 segments.
+ * This prevents sudden rotation jumps at sharp corners.
+ */
+function getRouteBearingAhead(segmentIndex, route) {
+  if (!route || route.length < 2) return 0;
+  const idx = Math.min(segmentIndex, route.length - 2);
+  const b0 = calculateBearing(
+    parseFloat(route[idx][0]), parseFloat(route[idx][1]),
+    parseFloat(route[idx + 1][0]), parseFloat(route[idx + 1][1])
+  );
+  // If next segment exists, blend 70/30 for smooth ahead-of-time rotation
+  if (idx + 2 < route.length) {
+    const b1 = calculateBearing(
+      parseFloat(route[idx + 1][0]), parseFloat(route[idx + 1][1]),
+      parseFloat(route[idx + 2][0]), parseFloat(route[idx + 2][1])
+    );
+    // Angular blend (shortest path)
+    let delta = ((b1 - b0) + 540) % 360 - 180;
+    return (b0 + delta * 0.3 + 360) % 360;
+  }
+  return b0;
+}
+
 /**
  * Generates route flow arrow markers positioned along polyline segments.
  */
@@ -197,8 +283,10 @@ export default function CampusMap({
   const prevLocRef = useRef(null);
 
   // Navigation Follow Mode: tracks if map should auto-rotate & follow user
-  const followModeRef = useRef(false); // true = map rotates with user heading
+  const followModeRef = useRef(false); // true = map rotates with route bearing
   const navRotationFrameRef = useRef(null); // rAF handle for smooth rotation loop
+  // Keep latest route accessible inside rAF without stale closure
+  const routeRef = useRef(route);
 
   // Markers Refs
   const userMarkerRef = useRef(null);
@@ -259,37 +347,46 @@ export default function CampusMap({
     }
   }, [currentLocation, mapLoaded]);
 
-  // 2. Start Navigation Focus + Enable Follow Mode (Google Maps-style)
+  // Keep routeRef in sync so rAF loop always sees latest route
+  useEffect(() => { routeRef.current = route; }, [route]);
+
+  // 2. Start Navigation Focus + Enable Follow Mode (path-based)
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
 
     if (isNavigating && !wasNavigatingRef.current) {
       wasNavigatingRef.current = true;
-      followModeRef.current = true; // Enable follow mode when navigation starts
+      followModeRef.current = true;
 
-      const hdg = headingRef.current || 0;
+      // Compute initial path bearing to point the map correctly from the start
+      let initialBearing = 0;
+      if (route && route.length >= 2 && currentLocation) {
+        const snap = snapToPath(currentLocation[0], currentLocation[1], route);
+        if (snap) initialBearing = getRouteBearingAhead(snap.segmentIndex, route);
+      }
+
       if (currentLocation && Array.isArray(currentLocation) && currentLocation.length === 2 && !isNaN(currentLocation[0]) && !isNaN(currentLocation[1])) {
         map.flyTo({
           center: [currentLocation[1], currentLocation[0]],
           zoom: 19.5,
           pitch: 50,
-          bearing: hdg, // Face in direction of travel
+          bearing: initialBearing, // Rotate to face the path
           duration: 1400,
         });
       }
     } else if (!isNavigating) {
       wasNavigatingRef.current = false;
-      followModeRef.current = false; // Disable follow mode when navigation stops
+      followModeRef.current = false;
 
       // Smoothly reset bearing to north when navigation ends
       if (map) {
         map.easeTo({ bearing: 0, pitch: 30, duration: 800 });
       }
     }
-  }, [isNavigating, currentLocation, mapLoaded]);
+  }, [isNavigating, currentLocation, route, mapLoaded]);
 
-  // 3. Smooth Navigation Rotation Loop: Continuously rotate map to user heading during navigation
+  // 3. Path-Based Navigation Rotation + Snap-to-Path Loop
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
@@ -302,37 +399,56 @@ export default function CampusMap({
 
     if (!isNavigating) return;
 
-    let lastBearing = map.getBearing();
+    // We store the last known center so we can detect real drift vs rAF noise
+    let lastCenterLng = null;
+    let lastCenterLat = null;
 
     const rotationLoop = () => {
-      if (!followModeRef.current || !mapRef.current) return;
+      if (!followModeRef.current || !mapRef.current) {
+        navRotationFrameRef.current = requestAnimationFrame(rotationLoop);
+        return;
+      }
 
-      const targetHeading = headingRef.current;
-      if (targetHeading !== null && targetHeading !== undefined && !isNaN(targetHeading)) {
-        const currentBearing = mapRef.current.getBearing();
+      const currentRoute = routeRef.current;
+      const loc = currentLocation; // captured from closure — updated each effect run
 
-        // Shortest angular path to target
-        let delta = ((targetHeading - currentBearing) + 540) % 360 - 180;
+      if (loc && Array.isArray(loc) && loc.length === 2 && currentRoute && currentRoute.length >= 2) {
+        const snap = snapToPath(loc[0], loc[1], currentRoute);
 
-        // Only update if delta is meaningful (>0.5 deg) for performance
-        if (Math.abs(delta) > 0.5) {
-          // Smooth interpolation: 8% per frame (~0.48 deg/frame at 60fps per 1deg delta)
-          const smoothed = currentBearing + delta * 0.08;
-          mapRef.current.setBearing(smoothed);
-          lastBearing = smoothed;
-        }
+        if (snap) {
+          const withinPath = snap.distMeters <= SNAP_MAX_METERS;
 
-        // Also track user location smoothly during follow mode
-        if (currentLocation && Array.isArray(currentLocation) && currentLocation.length === 2) {
-          // Only re-center if user hasn't manually panned significantly
+          // ── 1. Rotation: use path segment bearing ──────────────────────────
+          const targetBearing = withinPath
+            ? getRouteBearingAhead(snap.segmentIndex, currentRoute)
+            : mapRef.current.getBearing(); // freeze rotation if off-path
+
+          const currentBearing = mapRef.current.getBearing();
+          let delta = ((targetBearing - currentBearing) + 540) % 360 - 180;
+          if (Math.abs(delta) > 0.3) {
+            // 6% interpolation per frame = very smooth at 60fps
+            const smoothed = (currentBearing + delta * 0.06 + 360) % 360;
+            mapRef.current.setBearing(smoothed);
+          }
+
+          // ── 2. Camera centering: follow snapped position (or raw if off-path) ──
+          const followLat = withinPath ? snap.snappedLat : loc[0];
+          const followLng = withinPath ? snap.snappedLng : loc[1];
+
           const mapCenter = mapRef.current.getCenter();
-          const userLng = currentLocation[1];
-          const userLat = currentLocation[0];
-          const dx = Math.abs(mapCenter.lng - userLng);
-          const dy = Math.abs(mapCenter.lat - userLat);
-          // Auto-follow: softly pan to user if they've drifted more than ~8m from center
-          if (dx > 0.00008 || dy > 0.00008) {
-            mapRef.current.panTo([userLng, userLat], { duration: 300, easing: (t) => t });
+          const dx = Math.abs(mapCenter.lng - followLng);
+          const dy = Math.abs(mapCenter.lat - followLat);
+
+          // Re-center if drifted more than ~5m from the target follow point
+          if (dx > 0.00005 || dy > 0.00005) {
+            if (lastCenterLng !== followLng || lastCenterLat !== followLat) {
+              mapRef.current.panTo([followLng, followLat], {
+                duration: 400,
+                easing: (t) => t * (2 - t), // ease-out for smoothness
+              });
+              lastCenterLng = followLng;
+              lastCenterLat = followLat;
+            }
           }
         }
       }
