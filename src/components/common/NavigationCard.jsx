@@ -88,7 +88,7 @@ export default function NavigationCard({ destination, isNearBuilding = false, on
             </h4>
           </div>
 
-          <div className="p-1.5 bg-blue-50 text-blue-600 rounded-xl shrink-0">
+          <div className="p-1.5 bg-red-50 text-red-600 rounded-xl shrink-0">
             <MapPin size={18} className="animate-bounce" />
           </div>
         </div>

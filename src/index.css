@@ -44,10 +44,6 @@ input {
   font: inherit;
 }
 
-.leaflet-container {
-  font-family: var(--font-sans);
-}
-
 @keyframes fadeIn {
   from {
     opacity: 0;

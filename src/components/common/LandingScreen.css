@@ -13,7 +13,6 @@
   background-color: #ffffff;
   padding: 24px;
   overflow: hidden;
-  cursor: pointer;
   user-select: none;
   opacity: 1;
   transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
@@ -288,30 +287,4 @@
 .pill-dot.blue { background-color: #2563eb; }
 .pill-dot.black { background-color: #0f172a; }
 
-/* ── Bottom Auto-Advance Progress Bar ───────────────────────────────────── */
-.landing-progress-bar-wrap {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background-color: #f1f5f9;
-  overflow: hidden;
-  z-index: 3;
-}
 
-.landing-progress-bar-fill {
-  height: 100%;
-  background-color: #1d4ed8;
-  width: 0%;
-  animation: progressFill 3.2s linear forwards;
-}
-
-@keyframes progressFill {
-  from {
-    width: 0%;
-  }
-  to {
-    width: 100%;
-  }
-}

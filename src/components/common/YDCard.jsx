@@ -41,7 +41,7 @@ function YDCard({ destination, route = [], onStart, onCancel }) {
         {/* Row 1: Pin icon, Title, Subtitle & Distance/Time Pill */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-start gap-2.5 min-w-0">
-            <div className="p-2 bg-blue-50 text-blue-600 rounded-xl shrink-0 mt-0.5">
+            <div className="p-2 bg-red-50 text-red-600 rounded-xl shrink-0 mt-0.5">
               <MapPin size={20} />
             </div>
             <div className="min-w-0">

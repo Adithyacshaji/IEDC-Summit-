@@ -51,12 +51,22 @@ function BottomSheet({ isOpen, onClose, buildingName = "Category", events = [], 
     }
   }, [isOpen, buildingName]);
 
+  // Time string display extractor supporting time_start/time_end, time_slot, and time
+  const getTimeString = (e) => {
+    if (!e) return '';
+    if (e.time_start && e.time_end) {
+      return `${e.time_start.substring(0, 5)} - ${e.time_end.substring(0, 5)}`;
+    }
+    if (e.time_start) return e.time_start.substring(0, 5);
+    return e.time_slot || e.time || '';
+  };
+
   // Extract unique TIME SLOTS from category events with 'ALL' first
   const timeSlots = useMemo(() => {
     if (!events || events.length === 0) return ['ALL'];
     const slots = [...new Set(
       events
-        .map(e => (e.time_start && e.time_end ? (e.time_start.substring(0, 5) + ' - ' + e.time_end.substring(0, 5)) : (e.time_start ? e.time_start.substring(0, 5) : '')))
+        .map(e => getTimeString(e))
         .filter(Boolean)
     )].sort();
     return ['ALL', ...slots];
@@ -68,10 +78,7 @@ function BottomSheet({ isOpen, onClose, buildingName = "Category", events = [], 
     if (!selectedTime || selectedTime === 'ALL') {
       return events;
     }
-    return events.filter(e => {
-      const slot = e.time_start && e.time_end ? (e.time_start.substring(0, 5) + ' - ' + e.time_end.substring(0, 5)) : (e.time_start ? e.time_start.substring(0, 5) : '');
-      return slot === selectedTime;
-    });
+    return events.filter(e => getTimeString(e) === selectedTime);
   }, [events, selectedTime]);
 
   // Real-time IST live check comparing India date & time
@@ -123,7 +130,7 @@ function BottomSheet({ isOpen, onClose, buildingName = "Category", events = [], 
                     const isActive = selectedTime === slot;
                     const slotEvents = slot === 'ALL'
                       ? events
-                      : events.filter(e => (e.time_start?.substring(0,5) + ' - ' + e.time_end?.substring(0,5)) === slot);
+                      : events.filter(e => getTimeString(e) === slot);
                     const hasLiveEvent = slotEvents.some(e => isLive(e));
 
                     return (
@@ -150,54 +157,89 @@ function BottomSheet({ isOpen, onClose, buildingName = "Category", events = [], 
               {/* Events List */}
               {sortedEvents.length > 0 ? (
                 <div className='space-y-3 mt-1'>
-                  {sortedEvents.map(event => (
-                    <div key={event.id} className='bg-gray-50 p-4 rounded-2xl relative overflow-hidden shadow-sm border border-gray-200/80 hover:border-blue-300 transition-colors'>
-                      {isLive(event) && (
-                        <div className='absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg tracking-wider animate-pulse flex items-center gap-1'>
-                          <span className='w-1.5 h-1.5 rounded-full bg-white'></span>
-                          LIVE NOW (IST)
+                  {sortedEvents.map(event => {
+                    const timeDisp = getTimeString(event);
+                    const bldgDisp = event.building || event.block_name;
+                    const roomDisp = event.room || event.room_name || event.room_number;
+                    const floorDisp = event.floor || event.floor_number;
+                    const KNOWN_CATEGORIES = [
+                      "workshops and clinics",
+                      "panel discussions and fireside chats",
+                      "panel discussions & chats",
+                      "activity hub",
+                      "startup exhibitions",
+                      "hackathons and quiz",
+                      "hackathons & quiz",
+                      "formal function",
+                      "formal functions",
+                      "proshow",
+                      "pro show",
+                      "general"
+                    ];
+
+                    let speakerDisp = event.speaker || (Array.isArray(event.speakers) ? event.speakers.join(', ') : (event.speaker_name || event["Speaker's name"] || ''));
+                    if (speakerDisp && KNOWN_CATEGORIES.includes(speakerDisp.trim().toLowerCase())) {
+                      speakerDisp = '';
+                    }
+
+                    return (
+                      <div key={event.id || event.event_name} className='bg-gray-50 p-4 rounded-2xl relative overflow-hidden shadow-sm border border-gray-200/80 hover:border-blue-300 transition-colors'>
+                        {isLive(event) && (
+                          <div className='absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg tracking-wider animate-pulse flex items-center gap-1'>
+                            <span className='w-1.5 h-1.5 rounded-full bg-white'></span>
+                            LIVE NOW (IST)
+                          </div>
+                        )}
+                        <h3 className='text-base font-bold text-gray-900 pr-8 leading-snug'>{event.event_name}</h3>
+                        
+                        <div className='mt-2.5 flex flex-col gap-1 text-[13px] text-gray-600'>
+                          {speakerDisp && speakerDisp.trim() !== "" && (
+                            <div className='flex gap-2 items-center mb-0.5'>
+                              <span className='font-medium text-gray-500 w-16 shrink-0'>Speaker:</span>
+                              <span className='font-semibold text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-md border border-purple-100 flex items-center gap-1.5 text-[12px]'>
+                                <Users size={13} className="text-purple-600 inline shrink-0" />
+                                {speakerDisp}
+                              </span>
+                            </div>
+                          )}
+                          {timeDisp && (
+                            <div className='flex gap-2'>
+                              <span className='font-medium text-gray-500 w-16 shrink-0'>Time:</span> 
+                              <span className='font-semibold text-gray-800'>{timeDisp}</span>
+                            </div>
+                          )}
+                          {bldgDisp && bldgDisp.trim() !== "" && (
+                            <div className='flex gap-2'>
+                              <span className='font-medium text-gray-500 w-16 shrink-0'>Location:</span>
+                              <span className='font-semibold text-blue-600'>{bldgDisp}</span>
+                            </div>
+                          )}
+                          {floorDisp && (
+                            <div className='flex gap-2'>
+                              <span className='font-medium text-gray-500 w-16 shrink-0'>Floor:</span>
+                              <span className='font-semibold text-gray-800'>{floorDisp}</span>
+                            </div>
+                          )}
+                          {roomDisp && (
+                            <div className='flex gap-2'>
+                              <span className='font-medium text-gray-500 w-16 shrink-0'>Room:</span>
+                              <span className='font-semibold text-gray-800'>{roomDisp}</span>
+                            </div>
+                          )}
                         </div>
-                      )}
-                      <h3 className='text-base font-bold text-gray-900 pr-8 leading-snug'>{event.event_name}</h3>
-                      
-                      <div className='mt-2.5 flex flex-col gap-1 text-[13px] text-gray-600'>
-                        <div className='flex gap-2'>
-                          <span className='font-medium text-gray-500 w-16 shrink-0'>Time:</span> 
-                          <span className='font-semibold text-gray-800'>
-                            {event.time_start?.substring(0,5)} {event.time_end ? `- ${event.time_end?.substring(0,5)}` : ''}
-                          </span>
-                        </div>
-                        {event.building && event.building.trim() !== "" && (
-                          <div className='flex gap-2'>
-                            <span className='font-medium text-gray-500 w-16 shrink-0'>Location:</span>
-                            <span className='font-semibold text-blue-600'>{event.building}</span>
-                          </div>
-                        )}
-                        {event.floor && (
-                          <div className='flex gap-2'>
-                            <span className='font-medium text-gray-500 w-16 shrink-0'>Floor:</span>
-                            <span className='font-semibold text-gray-800'>{event.floor}</span>
-                          </div>
-                        )}
-                        {event.room && (
-                          <div className='flex gap-2'>
-                            <span className='font-medium text-gray-500 w-16 shrink-0'>Room:</span>
-                            <span className='font-semibold text-gray-800'>{event.room}</span>
-                          </div>
-                        )}
+                        
+                        <button 
+                          onClick={() => {
+                            onNavigate(event);
+                            onClose();
+                          }}
+                          className='mt-3.5 w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-2.5 rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-sm text-xs cursor-pointer'
+                        >
+                          <MapPin size={15} /> Take me there
+                        </button>
                       </div>
-                      
-                      <button 
-                        onClick={() => {
-                          onNavigate(event);
-                          onClose();
-                        }}
-                        className='mt-3.5 w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-2.5 rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-sm text-xs cursor-pointer'
-                      >
-                        <MapPin size={15} /> Take me there
-                      </button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className='p-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200 mt-2'>

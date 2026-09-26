@@ -61,74 +61,6 @@ body,
   height: 100svh;
 }
 
-/* ── Ultra-Smooth GPU Map Scrolling & Rendering ────────────────────────── */
-.leaflet-map-pane,
-.leaflet-tile-container,
-.leaflet-marker-pane,
-.leaflet-zoom-animated {
-  will-change: transform;
-  transform-style: preserve-3d;
-  backface-visibility: hidden;
-}
-
-.leaflet-tile {
-  will-change: transform, opacity;
-}
-
-/* ==========================================================================
-   LEAFLET MAP CONTROLS (Google Maps Style)
-   ========================================================================== */
-.campus-map .leaflet-control-zoom {
-  overflow: hidden;
-  border: 0 !important;
-  border-radius: 12px !important;
-  box-shadow: var(--gm-shadow-elevation-2) !important;
-}
-
-.campus-map .leaflet-control-zoom a {
-  width: 44px !important;
-  height: 44px !important;
-  border: 0 !important;
-  color: var(--gm-text-primary) !important;
-  font-size: 18px !important;
-  font-weight: 400 !important;
-  line-height: 44px !important;
-  background: var(--gm-bg-white) !important;
-  transition: background-color 0.2s, color 0.2s;
-}
-
-.campus-map .leaflet-control-zoom a:first-child {
-  border-bottom: 1px solid var(--gm-border-color) !important;
-}
-
-.campus-map .leaflet-control-zoom a:hover {
-  background: var(--gm-bg-gray) !important;
-  color: var(--gm-blue-primary) !important;
-}
-
-.campus-map .leaflet-control-zoom a.leaflet-disabled {
-  color: #bcc1c6 !important;
-  background: var(--gm-bg-white) !important;
-}
-
-/* Position zoom control accounting for safe area */
-.campus-map .leaflet-bottom.leaflet-right {
-  right: 16px !important;
-  bottom: calc(180px + var(--safe-area-bottom)) !important;
-  transition: bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Keep indoor zoom below the compact route selector. */
-.campus-map--indoor .leaflet-bottom.leaflet-right {
-  top: calc(236px + var(--safe-area-top)) !important;
-  bottom: auto !important;
-}
-
-@media (min-width: 768px) {
-  .campus-map .leaflet-bottom.leaflet-right {
-    bottom: 32px !important;
-  }
-}
 
 /* ==========================================================================
    TOP HEADER & SEARCH INTERFACE
@@ -441,20 +373,6 @@ body,
    GPS MARKERS - Premium Google Maps Style
    ========================================================================== */
 
-/* Counter-rotate inner marker graphics, tooltips, and popups for 180° rotated map pane */
-.custom-map-marker > div,
-.destination-marker > div,
-.user-location-marker > div,
-.outdoor-location-marker > div,
-.indoor-location-marker > div,
-.indoor-destination-marker > div,
-.facility-marker,
-.leaflet-popup-content-wrapper,
-.leaflet-tooltip > div,
-.leaflet-tooltip > span {
-  transform: rotate(180deg) !important;
-  transform-origin: center center !important;
-}
 
 /* ── Outdoor user location dot ── */
 .user-location-marker {
@@ -535,16 +453,6 @@ body,
   z-index: 1;
 }
 
-/* "You are here" Tooltip Styles */
-.leaflet-tooltip.yah-tooltip-container {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-}
-.leaflet-tooltip.yah-tooltip-container::before {
-  display: none !important; /* Hide default triangle */
-}
 .yah-toast {
   background: rgba(26,115,232,0.93);
   color: #fff;
@@ -609,7 +517,7 @@ body,
   height: 18px;
   border: 4px solid #fff;
   border-radius: 50%;
-  background: #1a73e8;
+  background: #ef4444;
   box-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);
 }
 
@@ -1017,55 +925,6 @@ body,
   transform: scale(0.96);
 }
 
-/* ==========================================================================
-   ISOMETRIC BUILDING ILLUSTRATION MARKERS
-   ========================================================================== */
-.building-iso-marker {
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow:
-    0 4px 14px rgba(0, 0, 0, 0.22),
-    0 1px 4px rgba(0, 0, 0, 0.12);
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
-  background: transparent;
-  /* Remove default Leaflet white border */
-  border: none !important;
-  outline: none !important;
-}
-
-.building-iso-marker img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  border-radius: 8px;
-}
-
-/* Subtle pop on hover */
-.leaflet-marker-icon.building-iso-marker:hover {
-  transform: scale(1.1) translateY(-4px);
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.28),
-    0 2px 6px rgba(0, 0, 0, 0.14);
-  z-index: 9999 !important;
-}
-
-.building-label {
-  background: transparent;
-  border: none;
-}
-
-.building-label div {
-  background: rgba(255, 255, 255, 0.07);
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: bold;
-  color: #222;
-  text-align: center;
-  white-space: nowrap;
-  white-space: pre-line;
-}
 
 .arrival-card {
   text-align: center;
@@ -1232,26 +1091,6 @@ body,
   to   { transform: rotate(360deg); }
 }
 
-/* Leaflet container smooth ground background color to prevent grey background during zoom */
-.leaflet-container {
-  background: #f4f3f0 !important;
-}
-
-/* Hide Leaflet watermark & attribution control */
-.leaflet-control-attribution {
-  display: none !important;
-}
-
-.leaflet-control-zoom {
-  display: none !important;
-}
-
-/* Smooth gliding transition for user location icon along path */
-.user-location-marker,
-.leaflet-marker-icon.user-location-marker {
-  transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1) !important;
-}
-
 /* Pulse animation for user marker */
 @keyframes pulse-ring {
   0% {
@@ -1272,10 +1111,3 @@ body,
 .route-arrow-marker {
   pointer-events: none !important;
 }
-
-/* Smooth polyline path reduction transition */
-.leaflet-interactive {
-  transition: stroke-dasharray 0.3s ease-out, stroke-dashoffset 0.3s ease-out;
-}
-
-

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import './LandingScreen.css';
 
 export default function LandingScreen({ onFinish }) {
@@ -9,21 +9,12 @@ export default function LandingScreen({ onFinish }) {
     setIsExiting(true);
     setTimeout(() => {
       if (onFinish) onFinish();
-    }, 400); // Smooth fade out duration
+    }, 400);
   };
-
-  useEffect(() => {
-    // Automatically advance to map after 3.2s
-    const timer = setTimeout(() => {
-      handleEnter();
-    }, 3200);
-    return () => clearTimeout(timer);
-  }, []);
 
   return (
     <div 
       className={`landing-overlay ${isExiting ? 'landing-exit' : ''}`}
-      onClick={handleEnter}
     >
       {/* Animated Subtle Blue/Black Grid Background */}
       <div className="landing-grid-bg" />
@@ -60,7 +51,7 @@ export default function LandingScreen({ onFinish }) {
 
         {/* Interactive Call-To-Action Button */}
         <button className="landing-cta-btn" onClick={handleEnter}>
-          <span>Explore Campus Map</span>
+          <span>Locate Events</span>
           <svg className="cta-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="5" y1="12" x2="19" y2="12" />
             <polyline points="12 5 19 12 12 19" />
@@ -79,11 +70,6 @@ export default function LandingScreen({ onFinish }) {
             <span className="pill-dot blue" /> Venue Guide
           </div>
         </div>
-      </div>
-
-      {/* Auto-Advance Bottom Progress Bar */}
-      <div className="landing-progress-bar-wrap">
-        <div className="landing-progress-bar-fill" />
       </div>
     </div>
   );

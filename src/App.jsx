@@ -14,6 +14,7 @@ import FeedbackCard from "./components/common/FeedbackCard";
 import LocationAlertCard from "./components/common/LocationAlertCard";
 import YDRouteCard from "./components/common/YDRouteCard";
 import { buildNodeMap, findNearestOutdoorNode, findOutdoorPath } from "./routing/outdoorRouter";
+import { findMatchingBuildingNode } from "./utils/buildingMatcher";
 import { gpsDistanceMeters } from "./utils/gpsDistance";
 import { getDistanceToRoute } from "./utils/distanceToRoute";
 import "./App.css";
@@ -23,7 +24,7 @@ const DEFAULT_USER_POS = [10.361964, 76.285827];
 
 export default function App() {
   const { loading: dbLoading, events, nodes, edges, searchItems } = useDatabase();
-  const { location, heading: compassHeading, gpsStatus, startTracking, getOneShotLocation } = useCurrentLocation();
+  const { location, heading: compassHeading, gpsStatus, startTracking, getOneShotLocation, requestCompassPermission } = useCurrentLocation();
 
   // Minimalist Splash / Landing Screen State
   const [showLanding, setShowLanding] = useState(true);
@@ -43,15 +44,15 @@ export default function App() {
     routeRef.current = route;
   }, [route]);
 
-  // Feedback Card state after reaching destination
+
   const [showFeedbackCard, setShowFeedbackCard] = useState(false);
   const [feedbackDestination, setFeedbackDestination] = useState(null);
 
   // GPS Alert Dismissal state
   const [dismissGpsAlert, setDismissGpsAlert] = useState(false);
 
-  // Testing Flag: Set to true to force Default Entrance Location; false to use Real Live GPS
-  const [useDefaultLocation, setUseDefaultLocation] = useState(true);
+  // Always use live GPS in production
+  const [useDefaultLocation, setUseDefaultLocation] = useState(false);
 
   const handleRetryGps = async () => {
     startTracking();
@@ -63,10 +64,74 @@ export default function App() {
   const [selectedBuilding, setSelectedBuilding] = useState("Main");
   const [activeCategory, setActiveCategory] = useState(null);
 
+  // Ref to the LiveEventsModal so we can call handleBack() for category drill-down
+  const liveModalRef = React.useRef(null);
+
+  // ─── Android / PWA Hardware Back Button ─────────────────────────────────
+  // History API sentinel pattern: one extra history entry is always maintained
+  // so popstate fires before Android exits/minimises the PWA.
+  // All live UI state is read through _backStateRef to avoid stale closures in
+  // the empty-dep effect.
+  // Priority: FeedbackCard → BottomSheet → Modal (category) → Modal → Navigation → Route
+  // ─────────────────────────────────────────────────────────────────
+  const _backStateRef = React.useRef({});
+  React.useEffect(() => {
+    _backStateRef.current = {
+      showFeedbackCard, bottomSheetOpen, showLiveModal, isNavigating, destination,
+    };
+  }, [showFeedbackCard, bottomSheetOpen, showLiveModal, isNavigating, destination]);
+
+  React.useEffect(() => {
+    window.history.pushState(null, ''); // Push initial sentinel
+
+    const handleBackButton = () => {
+      const s = _backStateRef.current;
+      let consumed = false;
+
+      if (s.showFeedbackCard) {
+        setShowFeedbackCard(false);
+        consumed = true;
+      } else if (s.bottomSheetOpen) {
+        setBottomSheetOpen(false);
+        consumed = true;
+      } else if (s.showLiveModal && liveModalRef.current?.handleBack()) {
+        consumed = true; // Modal handled it: event list → category grid
+      } else if (s.showLiveModal) {
+        setShowLiveModal(false);
+        consumed = true;
+      } else if (s.isNavigating || s.destination) {
+        setRoute([]);
+        setIsNavigating(false);
+        setDestination(null);
+        setSelectedLocation(null);
+        setCustomOrigin(null);
+        consumed = true;
+      }
+
+      if (consumed) {
+        window.history.pushState(null, ''); // Restore sentinel for next press
+      }
+      // Not consumed → browser handles naturally (exits / minimises PWA)
+    };
+
+    window.addEventListener('popstate', handleBackButton);
+    return () => window.removeEventListener('popstate', handleBackButton);
+  }, []); // Empty — reads live values through _backStateRef
+  // ─────────────────────────────────────────────────────────────────
+
   // Build dynamic node map lookup { [id]: [lat, lng] } from DB nodes
   const nodeMap = useMemo(() => {
     return buildNodeMap(nodes);
   }, [nodes]);
+
+  // Check if live GPS position fix is actively available
+  const isLiveGps = Boolean(
+    location &&
+    Array.isArray(location) &&
+    location.length === 2 &&
+    !isNaN(location[0]) &&
+    !isNaN(location[1])
+  );
 
   // Computed active user coordinates
   const userCoords = useMemo(() => {
@@ -95,18 +160,24 @@ export default function App() {
   // Helper string cleaner
   const cleanStr = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
-  // Computed display coordinates for user location icon:
-  // If user is within 3 meters of the current route, snap/center icon directly on the path line!
+  // Display coords for the user icon:
+  // Within 5 m of the path → snap icon to the nearest point ON the path so it
+  // travels smoothly along the line even when GPS noise pushes the raw fix sideways.
+  // Beyond 5 m → use real GPS (and the dotted connector + reroute will kick in).
   const displayUserCoords = useMemo(() => {
     if (route && route.length >= 2 && userCoords) {
       const userLoc = { lat: userCoords[0], lng: userCoords[1] };
       const { point, distanceMeters } = getDistanceToRoute(route, userLoc);
-      if (distanceMeters <= 3 && point && Array.isArray(point)) {
-        return point; // Centered to path line!
+      if (distanceMeters <= 5 && point && Array.isArray(point)) {
+        return point; // icon glued to path line
       }
     }
     return userCoords;
   }, [route, userCoords]);
+
+  // Off-route connector: {userPoint:[lat,lng], pathPoint:[lat,lng]}
+  // Set when user is >5 m from the route; cleared when back on route.
+  const [offRouteConnector, setOffRouteConnector] = React.useState(null);
 
   // Live dynamic route update with off-route threshold (5m) & smooth path reduction
   React.useEffect(() => {
@@ -119,18 +190,23 @@ export default function App() {
     if (currentRoute && currentRoute.length >= 2) {
       const { point, distanceMeters, segmentIndex } = getDistanceToRoute(currentRoute, userLoc);
 
-      // If user is within 5 meters of current route line, stay ON ROUTE!
-      // Do NOT re-run A* nearest node search to avoid path flipping.
+      // Within 5 m of the path — user is ON route, keep current path
       if (distanceMeters <= 5) {
+        setOffRouteConnector(null); // clear connector — user is on path
         // Snap path origin to route if within 3m, otherwise use activeStartCoords
         const startPoint = (distanceMeters <= 3 && point && Array.isArray(point)) ? point : activeStartCoords;
         const remainingSegment = currentRoute.slice(segmentIndex + 1);
         const updatedRoute = [startPoint, ...remainingSegment];
-        
+
         if (updatedRoute.length >= 2) {
           setRoute(updatedRoute);
         }
         return;
+      }
+
+      // User is >5 m off-route: show dotted connector while rerouting
+      if (point && Array.isArray(point)) {
+        setOffRouteConnector({ userPoint: activeStartCoords, pathPoint: point });
       }
     }
 
@@ -148,12 +224,7 @@ export default function App() {
     } else if (destination.position && Array.isArray(destination.position)) {
       destNodeId = findNearestOutdoorNode(destination.position[0], destination.position[1], nodeMap);
     } else {
-      const targetClean = cleanStr(destination.building || destination.name || destination.event_name);
-      const matchingNode = nodes.find((n) => {
-        const nc = cleanStr(n.building_name || n.name || n.id);
-        return nc && targetClean && (nc.includes(targetClean) || targetClean.includes(nc));
-      });
-
+      const matchingNode = findMatchingBuildingNode(destination.building || destination.name || destination.event_name, nodes);
       if (matchingNode) {
         destNodeId = matchingNode.id;
         destPos = [parseFloat(matchingNode.latitude), parseFloat(matchingNode.longitude)];
@@ -201,11 +272,7 @@ export default function App() {
       } else if (targetItem.id && nodeMap[targetItem.id]) {
         destPos = nodeMap[targetItem.id];
       } else {
-        const targetClean = cleanStr(targetItem.building || targetItem.name || targetItem.event_name);
-        const matchingNode = nodes.find((n) => {
-          const nc = cleanStr(n.building_name || n.name || n.id);
-          return nc && targetClean && (nc.includes(targetClean) || targetClean.includes(nc));
-        });
+        const matchingNode = findMatchingBuildingNode(targetItem.building || targetItem.name || targetItem.event_name, nodes);
         if (matchingNode) {
           destPos = [parseFloat(matchingNode.latitude), parseFloat(matchingNode.longitude)];
         }
@@ -214,7 +281,7 @@ export default function App() {
 
     const startNodeId = findNearestOutdoorNode(activeStartCoords[0], activeStartCoords[1], nodeMap);
     let destNodeId = targetItem.id && nodeMap[targetItem.id] ? targetItem.id : (destPos ? findNearestOutdoorNode(destPos[0], destPos[1], nodeMap) : null);
-    
+
     let pathNodeIds = [];
     if (startNodeId && destNodeId && startNodeId !== destNodeId) {
       pathNodeIds = findOutdoorPath(startNodeId, destNodeId, nodeMap, edges);
@@ -314,17 +381,22 @@ export default function App() {
     <div className="fixed inset-0 w-full h-full h-[100dvh] overflow-hidden bg-gray-50 flex flex-col touch-none select-none">
       {/* Minimalist Splash / Loading Screen */}
       {showLanding && (
-        <LandingScreen 
+        <LandingScreen
           onFinish={() => {
             setShowLanding(false);
             setShowLiveModal(true); // Open live events popup on map load
-          }} 
+            // Request DeviceOrientation permission here — this callback fires from
+            // a user button tap, which is the only valid gesture iOS 13+ accepts.
+            // On Android / non-iOS this is a no-op (returns "not-required" instantly).
+            requestCompassPermission();
+          }}
         />
       )}
 
       {/* Live Events Popup Modal on First Map Load */}
       {!showLanding && showLiveModal && (
         <LiveEventsModal
+          ref={liveModalRef}
           events={events}
           onNavigate={(event) => {
             handleSelectDestination(event);
@@ -368,21 +440,6 @@ export default function App() {
           />
         )}
 
-        {/* Location Mode Toggle (For Testing: Toggle between Real Live GPS vs Default Entrance Position) */}
-        <div className="flex justify-end pt-0.5 pointer-events-auto">
-          <button
-            onClick={() => setUseDefaultLocation((prev) => !prev)}
-            className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold shadow-md border transition-all flex items-center gap-1.5 backdrop-blur-md ${
-              useDefaultLocation
-                ? "bg-slate-900/90 text-white border-slate-700 hover:bg-slate-800"
-                : "bg-blue-600/90 text-white border-blue-700 hover:bg-blue-700"
-            }`}
-            title="Click to toggle between Real GPS Location and Default Entrance Location"
-          >
-            <span className={`w-2 h-2 rounded-full bg-white ${!useDefaultLocation ? "animate-ping" : ""}`} />
-            <span>{useDefaultLocation ? "Testing Mode: Default Entrance Location" : "Live GPS Mode"}</span>
-          </button>
-        </div>
       </div>
 
       {/* Main Outdoor Map */}
@@ -390,10 +447,12 @@ export default function App() {
         <CampusMap
           selectedLocation={selectedLocation}
           currentLocation={displayUserCoords}
+          isLiveGps={isLiveGps}
           heading={compassHeading}
           route={route}
           destination={destination}
           isNavigating={isNavigating}
+          offRouteConnector={offRouteConnector}
           onSelectLocation={(loc) => {
             handleSelectDestination(loc);
           }}

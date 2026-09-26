@@ -101,7 +101,7 @@ export default function YDRouteCard({
           <div className="flex flex-col items-center gap-1 my-1">
             <div className="w-3 h-3 rounded-full bg-blue-600 border-2 border-white shadow-sm shrink-0" />
             <div className="w-0.5 h-6 bg-gray-200" />
-            <div className="w-3 h-3 rounded-full bg-slate-900 border-2 border-white shadow-sm shrink-0" />
+            <div className="w-3 h-3 rounded-full bg-red-600 border-2 border-white shadow-sm shrink-0" />
           </div>
 
           {/* Origin & Destination Display Column */}
